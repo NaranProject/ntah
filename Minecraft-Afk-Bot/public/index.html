@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Bot Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .status-item {
+            display: inline-block;
+            margin-right: 20px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-connected { color: #4CAF50; }
+        .status-disconnected { color: #f44336; }
+        .status-mining { color: #FF9800; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #da190b);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #FF9800, #f57c00);
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chat-container {
+            grid-column: 1 / -1;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .chat-log {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .chat-message {
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .chat-system {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .chat-chat {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .chat-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+            margin-right: 10px;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(100%); }
+            15% { opacity: 1; transform: translateX(0); }
+            85% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(100%); }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Minecraft Bot Controller</h1>
+            <p>Advanced Bot Management Interface</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                Status: <span id="connection-status" class="status-disconnected">Disconnected</span>
+            </div>
+            <div class="status-item">
+                Mining: <span id="mining-status" class="status-disconnected">Stopped</span>
+            </div>
+            <div class="status-item">
+                Username: <span id="current-username">-</span>
+            </div>
+            <div class="status-item">
+                Server: <span id="current-server">-</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>🔌 Connection Control</h3>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="connectBot()">Connect Bot</button>
+                    <button class="btn btn-danger" onclick="disconnectBot()">Disconnect Bot</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⛏️ Mining Control</h3>
+                <div class="btn-group">
+                    <button class="btn btn-warning" onclick="startMining()">Start Mining</button>
+                    <button class="btn btn-danger" onclick="stopMining()">Stop Mining</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>👀 Look Direction</h3>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="lookDirection('west')">West</button>
+                    <button class="btn btn-primary" onclick="lookDirection('east')">East</button>
+                    <button class="btn btn-primary" onclick="lookDirection('north')">North</button>
+                    <button class="btn btn-primary" onclick="lookDirection('south')">South</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <h4>Fine Look Control</h4>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="adjustLook(-15, 0)">← 15°</button>
+                        <button class="btn btn-primary" onclick="adjustLook(-5, 0)">← 5°</button>
+                        <button class="btn btn-primary" onclick="adjustLook(5, 0)">5° →</button>
+                        <button class="btn btn-primary" onclick="adjustLook(15, 0)">15° →</button>
+                    </div>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-primary" onclick="adjustLook(0, -15)">↑ 15°</button>
+                        <button class="btn btn-primary" onclick="adjustLook(0, -5)">↑ 5°</button>
+                        <button class="btn btn-primary" onclick="adjustLook(0, 5)">5° ↓</button>
+                        <button class="btn btn-primary" onclick="adjustLook(0, 15)">15° ↓</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🚶 Movement Control</h3>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div class="btn-group">
+                        <button class="btn btn-success" onmousedown="startMovement('forward')" onmouseup="stopMovement('forward')" ontouchstart="startMovement('forward')" ontouchend="stopMovement('forward')">↑ Forward</button>
+                    </div>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-success" onmousedown="startMovement('left')" onmouseup="stopMovement('left')" ontouchstart="startMovement('left')" ontouchend="stopMovement('left')">← Left</button>
+                        <button class="btn btn-success" onmousedown="startMovement('back')" onmouseup="stopMovement('back')" ontouchstart="startMovement('back')" ontouchend="stopMovement('back')">↓ Back</button>
+                        <button class="btn btn-success" onmousedown="startMovement('right')" onmouseup="stopMovement('right')" ontouchstart="startMovement('right')" ontouchend="stopMovement('right')">Right →</button>
+                    </div>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-warning" onmousedown="startMovement('jump')" onmouseup="stopMovement('jump')" ontouchstart="startMovement('jump')" ontouchend="stopMovement('jump')">🦘 Jump</button>
+                        <button class="btn btn-warning" onmousedown="startMovement('sneak')" onmouseup="stopMovement('sneak')" ontouchstart="startMovement('sneak')" ontouchend="stopMovement('sneak')">🐍 Sneak</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⚙️ Bot Settings</h3>
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" placeholder="Bot username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="Login password">
+                </div>
+                <div class="form-group">
+                    <label for="server-ip">Server IP:</label>
+                    <input type="text" id="server-ip" placeholder="Server IP address">
+                </div>
+                <button class="btn btn-primary" onclick="updateSettings()">Update Settings</button>
+            </div>
+
+            <div class="card chat-container">
+                <h3>💬 Chat Log</h3>
+                <div class="chat-log" id="chat-log">
+                    <div class="chat-message chat-system">
+                        <span class="timestamp">--:--:--</span>
+                        <span>Waiting for bot connection...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let updateInterval;
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('connection-status').textContent = data.isConnected ? 'Connected' : 'Disconnected';
+                    document.getElementById('connection-status').className = data.isConnected ? 'status-connected' : 'status-disconnected';
+
+                    document.getElementById('mining-status').textContent = data.isMining ? 'Active' : 'Stopped';
+                    document.getElementById('mining-status').className = data.isMining ? 'status-mining' : 'status-disconnected';
+
+                    document.getElementById('current-username').textContent = data.username || '-';
+                    document.getElementById('current-server').textContent = data.serverIp || '-';
+
+                    // Update chat log
+                    const chatLog = document.getElementById('chat-log');
+                    chatLog.innerHTML = '';
+
+                    data.chatLogs.forEach(log => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `chat-message chat-${log.type}`;
+
+                        const timestamp = new Date(log.timestamp).toLocaleTimeString();
+                        const username = log.username ? `<${log.username}>` : '';
+
+                        messageDiv.innerHTML = `
+                            <span class="timestamp">${timestamp}</span>
+                            <span>${username} ${log.message}</span>
+                        `;
+
+                        chatLog.appendChild(messageDiv);
+                    });
+
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                })
+                .catch(error => console.error('Error updating status:', error));
+        }
+
+        function connectBot() {
+            fetch('/api/connect', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    if (data.success) updateStatus();
+                });
+        }
+
+        function disconnectBot() {
+            fetch('/api/disconnect', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateStatus();
+                });
+        }
+
+        function startMining() {
+            fetch('/api/mining/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateStatus();
+                });
+        }
+
+        function stopMining() {
+            fetch('/api/mining/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateStatus();
+                });
+        }
+
+        function startTargetMining() {
+            fetch('/api/mining/target', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    updateStatus();
+                });
+        }
+
+        function lookDirection(direction) {
+            fetch('/api/look', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ direction })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showNotification(data.message);
+            });
+        }
+
+        function adjustLook(yawDelta, pitchDelta) {
+            fetch('/api/look/adjust', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ yawDelta, pitchDelta })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showNotification(data.message);
+            });
+        }
+
+        function startMovement(action) {
+            fetch('/api/movement', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, state: 'start' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+            });
+        }
+
+        function stopMovement(action) {
+            fetch('/api/movement', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, state: 'stop' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+            });
+        }
+
+        function showNotification(message) {
+            // Create a simple notification instead of alert for better UX
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                animation: fadeInOut 3s ease-in-out;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+
+        function updateSettings() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const serverIp = document.getElementById('server-ip').value;
+
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, serverIp })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                updateStatus();
+            });
+        }
+
+        // Initialize
+        updateStatus();
+        updateInterval = setInterval(updateStatus, 2000);
+    </script>
+</body>
+</html>
